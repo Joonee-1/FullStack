@@ -1,0 +1,48 @@
+name: Full-Stack Docker Build and Push to ECR
+
+on:
+  push:
+    branches:
+      - main # Triggers the workflow on every push to the main branch
+
+env:
+  # Uses the ECR URI you configured in GitHub Secrets
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URI }} 
+  # Uses the unique commit ID as the immutable image tag
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 1. Configure AWS Credentials using the GitHub Secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 2. Login to ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      # 3. Build, Tag, and Push Backend Image (ByteByteGo Step 4 & 5)
+      - name: Build, Tag, and Push Backend Image
+        run: |
+          docker-compose build fullstack-backend
+          BACKEND_URI=$ECR_REGISTRY/fullstack-backend:$IMAGE_TAG
+          docker tag fullstack-backend:latest $BACKEND_URI
+          docker push $BACKEND_URI
+      
+      # 4. Build, Tag, and Push Frontend Image
+      - name: Build, Tag, and Push Frontend Image
+        run: |
+          docker-compose build fullstack-frontend
+          FRONTEND_URI=$ECR_REGISTRY/fullstack-frontend:$IMAGE_TAG
+          docker tag fullstack-frontend:latest $FRONTEND_URI
+          docker push $FRONTEND_URI
