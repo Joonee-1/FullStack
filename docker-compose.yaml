@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: bankdb_vuln
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Backend uses the container name 'mongo' to talk to the DB
+      MONGO_URI: mongodb://admin:admin123@mongo:27017/bankdb_vuln?authSource=admin
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser needs 'localhost' to reach the backend mapped port
+        - REACT_APP_API_URL=http://localhost:8000
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

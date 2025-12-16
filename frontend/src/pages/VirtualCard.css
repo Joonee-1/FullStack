@@ -1,0 +1,49 @@
+.virtual-card {
+  width: 320px;
+  height: 200px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #004aad, #00bfff);
+  color: white;
+  padding: 16px;
+  margin: 12px;
+  position: relative;
+  font-family: 'Arial', sans-serif;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.virtual-card .front {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.virtual-card .chip {
+  width: 40px;
+  height: 30px;
+  background: gold;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.virtual-card .card-no {
+  font-size: 1.2em;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.virtual-card .valid-thru {
+  font-size: 0.8em;
+}
+
+.virtual-card .back {
+  background: #333;
+  color: #fff;
+  padding: 8px;
+  font-size: 0.9em;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
