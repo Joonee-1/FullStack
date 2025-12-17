@@ -3,46 +3,55 @@ name: Full-Stack Docker Build and Push to ECR
 on:
   push:
     branches:
-      - main # Triggers the workflow on every push to the main branch
+      - main 
 
-env:
-  # Uses the ECR URI you configured in GitHub Secrets
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URI }} 
-  # Uses the unique commit ID as the immutable image tag
-  IMAGE_TAG: ${{ github.sha }}
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      # 1. Configure AWS Credentials using the GitHub Secrets
-      - name: Configure AWS Credentials
+
+      # --- 🛡️ THE CI GATE: AIKIDO SCAN ---
+      # This step must pass for the build to continue to AWS
+      - name: Run Aikido Security Scan
+        uses: AikidoSec/github-actions-workflow@v1.0.13
+        with:
+          secret-key: ${{ secrets.AIKIDO_API_KEY }}
+          fail-on-dependency-scan: true  # Blocks build if npm/pip libs are vulnerable
+          fail-on-sast-scan: true        # Blocks build if your code logic is unsafe
+          minimum-severity: 'HIGH'       # Only stops the build for High/Critical issues
+
+      # --- ☁️ CONFIGURE AWS CREDENTIALS ---
+      # This only runs if the Aikido scan above turns GREEN
+      - name: Configure AWS Credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::211395678018:role/GitHubAction-ECR-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # 2. Login to ECR
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-        
-      # 3. Build, Tag, and Push Backend Image (ByteByteGo Step 4 & 5)
-      - name: Build, Tag, and Push Backend Image
+
+      # --- 📦 BUILD AND PUSH ---
+      - name: Build and Push Backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker-compose build fullstack-backend
-          BACKEND_URI=$ECR_REGISTRY/fullstack-backend:$IMAGE_TAG
-          docker tag fullstack-backend:latest $BACKEND_URI
-          docker push $BACKEND_URI
-      
-      # 4. Build, Tag, and Push Frontend Image
-      - name: Build, Tag, and Push Frontend Image
+          docker-compose build backend
+          docker tag backend:latest $ECR_REGISTRY/fullstack-backend:latest
+          docker push $ECR_REGISTRY/fullstack-backend:latest
+
+      - name: Build and Push Frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker-compose build fullstack-frontend
-          FRONTEND_URI=$ECR_REGISTRY/fullstack-frontend:$IMAGE_TAG
-          docker tag fullstack-frontend:latest $FRONTEND_URI
-          docker push $FRONTEND_URI
+          docker-compose build frontend
+          docker tag frontend:latest $ECR_REGISTRY/fullstack-frontend:latest
+          docker push $ECR_REGISTRY/fullstack-frontend:latest
