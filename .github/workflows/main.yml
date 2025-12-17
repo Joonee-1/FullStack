@@ -3,7 +3,8 @@ name: Full-Stack Docker Build and Push to ECR
 on:
   push:
     branches:
-      - main 
+      - main
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,23 +13,18 @@ permissions:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- 🛡️ THE CI GATE: AIKIDO SCAN ---
-      # This step must pass for the build to continue to AWS
       - name: Run Aikido Security Scan
         uses: AikidoSec/github-actions-workflow@v1.0.13
         with:
           secret-key: ${{ secrets.AIKIDO_API_KEY }}
-          fail-on-dependency-scan: true  # Blocks build if npm/pip libs are vulnerable
-          fail-on-sast-scan: true        # Blocks build if your code logic is unsafe
-          minimum-severity: 'HIGH'       # Only stops the build for High/Critical issues
+          fail-on-dependency-scan: true
+          fail-on-sast-scan: true
+          minimum-severity: 'HIGH'
 
-      # --- ☁️ CONFIGURE AWS CREDENTIALS ---
-      # This only runs if the Aikido scan above turns GREEN
       - name: Configure AWS Credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -39,7 +35,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # --- 📦 BUILD AND PUSH ---
       - name: Build and Push Backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
